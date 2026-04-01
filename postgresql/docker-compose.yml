@@ -1,0 +1,70 @@
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: etcd
+    restart: unless-stopped
+    environment:
+      ETCD_NAME: ${ETCD_NAME}
+      ETCD_DATA_DIR: /etcd-data
+      ETCD_INITIAL_CLUSTER: "etcd1=http://172.16.0.201:2380,etcd2=http://172.16.0.202:2380,etcd3=http://172.16.0.203:2380"
+      ETCD_INITIAL_CLUSTER_STATE: new
+      ETCD_INITIAL_CLUSTER_TOKEN: pg-cluster-token
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: "http://${NODE_IP}:2380"
+      ETCD_LISTEN_PEER_URLS: "http://0.0.0.0:2380"
+      ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
+      ETCD_ADVERTISE_CLIENT_URLS: "http://${NODE_IP}:2379"
+    volumes:
+      - /mnt/nvme/etcd-data:/etcd-data
+    network_mode: host
+
+  patroni:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: patroni
+    restart: unless-stopped
+    environment:
+      NODE_NAME: ${NODE_NAME}
+      NODE_IP: ${NODE_IP}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD}
+      REWIND_PASSWORD: ${REWIND_PASSWORD}
+      ADEMPIERE_PASSWORD: ${ADEMPIERE_PASSWORD}
+    volumes:
+      - /mnt/nvme/pgdata:/var/lib/postgresql/data
+      - ./config/patroni.yml.tmpl:/etc/patroni/patroni.yml.tmpl:ro
+    network_mode: host
+    depends_on:
+      etcd:
+        condition: service_started
+
+  haproxy:
+    image: haproxy:3.0-bookworm
+    container_name: haproxy
+    restart: unless-stopped
+    volumes:
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    network_mode: host
+    depends_on:
+      patroni:
+        condition: service_started
+
+  keepalived:
+    build:
+      context: .
+      dockerfile: Dockerfile.keepalived
+    container_name: keepalived
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+      - NET_RAW
+    network_mode: host
+    environment:
+      KEEPALIVED_STATE: ${KEEPALIVED_STATE}
+      KEEPALIVED_PRIORITY: ${KEEPALIVED_PRIORITY}
+      KEEPALIVED_PASSWORD: ${KEEPALIVED_PASSWORD}
+      KEEPALIVED_INTERFACE: ${KEEPALIVED_INTERFACE:-ens19}
+    depends_on:
+      haproxy:
+        condition: service_started

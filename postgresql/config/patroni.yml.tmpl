@@ -1,0 +1,80 @@
+scope: pg-cluster
+namespace: /db/
+name: ${NODE_NAME}
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${NODE_IP}:8008
+
+etcd3:
+  hosts: 172.16.0.201:2379,172.16.0.202:2379,172.16.0.203:2379
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 1GB
+        hot_standby_feedback: "on"
+        shared_buffers: 10GB
+        effective_cache_size: 40GB
+        work_mem: 64MB
+        maintenance_work_mem: 2GB
+        wal_buffers: 64MB
+        max_connections: 200
+        wal_compression: zstd
+        max_wal_size: 4GB
+        min_wal_size: 1GB
+        random_page_cost: 1.1
+        effective_io_concurrency: 200
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+  pg_hba:
+    - host replication replicator 172.16.0.0/16 scram-sha-256
+    - host all all 192.168.1.0/24 scram-sha-256
+    - host all all 172.16.0.0/16 scram-sha-256
+    - host all all 0.0.0.0/0 reject
+  users:
+    replicator:
+      password: ${REPLICATION_PASSWORD}
+      options:
+        - replication
+  post_bootstrap: /usr/local/bin/post-bootstrap.sh
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${NODE_IP}:5432
+  data_dir: /var/lib/postgresql/data
+  bin_dir: /usr/lib/postgresql/18/bin
+  pgpass: /tmp/pgpass0
+  parameters:
+    shared_buffers: ${PG_SHARED_BUFFERS}
+    effective_cache_size: ${PG_EFFECTIVE_CACHE_SIZE}
+    work_mem: ${PG_WORK_MEM}
+    maintenance_work_mem: ${PG_MAINTENANCE_WORK_MEM}
+  authentication:
+    replication:
+      username: replicator
+      password: ${REPLICATION_PASSWORD}
+    superuser:
+      username: postgres
+      password: ${POSTGRES_PASSWORD}
+    rewind:
+      username: rewind_user
+      password: ${REWIND_PASSWORD}
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false

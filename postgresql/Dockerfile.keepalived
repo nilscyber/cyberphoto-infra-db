@@ -1,0 +1,8 @@
+FROM alpine:3.20
+
+RUN apk add --no-cache keepalived bash
+
+COPY scripts/keepalived-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
