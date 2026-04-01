@@ -8,7 +8,7 @@ Create 3 VMs. The primary needs the most resources; replicas can be smaller.
 
 | Setting  | Node 1 (primary)       | Nodes 2 & 3 (replicas)   |
 |----------|------------------------|--------------------------|
-| OS       | Debian 12 (Bookworm)   | Debian 12 (Bookworm)     |
+| OS       | Ubuntu 24.04 LTS       | Ubuntu 24.04 LTS         |
 | CPU      | 8 vCPUs                | 4+ vCPUs                 |
 | RAM      | 50 GB                  | 16–32 GB                 |
 | Disk 1   | 32 GB (OS, on SSD/HDD) | 32 GB (OS, on SSD/HDD)   |
@@ -59,8 +59,8 @@ chown 999:999 /mnt/nvme/pgdata
 apt-get update
 apt-get install -y ca-certificates curl gnupg
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
 apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
