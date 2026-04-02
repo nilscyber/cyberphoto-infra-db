@@ -28,13 +28,25 @@ Assign static IPs:
 | Node 3 | 172.16.0.203  |
 | VIP    | 172.16.0.200  |
 
-### 2. Create patroni user and directories
+### 2. Install Docker
+
+```bash
+apt-get update
+apt-get install -y ca-certificates curl gnupg
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
+
+### 3. Create patroni user and directories
 
 ```bash
 # Create a dedicated user (no login shell needed)
 useradd -r -m -d /opt/patroni -s /usr/sbin/nologin patroni
 
-# Add to docker group so it can run docker compose
+# Add to docker group (docker group exists now that Docker is installed)
 usermod -aG docker patroni
 
 # Create data directories
@@ -45,18 +57,6 @@ chown 999:999 /var/lib/patroni/pgdata
 
 # etcd-data owned by the patroni user
 chown patroni:patroni /var/lib/patroni/etcd-data
-```
-
-### 3. Install Docker
-
-```bash
-apt-get update
-apt-get install -y ca-certificates curl gnupg
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
-apt-get update
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
 
 ### 4. Copy project files

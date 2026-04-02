@@ -17,4 +17,5 @@ COPY scripts/patroni-entrypoint.sh /entrypoint.sh
 COPY scripts/post-bootstrap.sh /usr/local/bin/post-bootstrap.sh
 RUN chmod +x /entrypoint.sh /usr/local/bin/post-bootstrap.sh
 
+USER postgres
 ENTRYPOINT ["/entrypoint.sh"]
