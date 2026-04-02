@@ -11,13 +11,13 @@ Create 3 VMs. The primary needs the most resources; replicas can be smaller.
 | OS       | Ubuntu 24.04 LTS       | Ubuntu 24.04 LTS         |
 | CPU      | 8 vCPUs                | 4+ vCPUs                 |
 | RAM      | 50 GB                  | 16–32 GB                 |
-| Disk 1   | 32 GB (OS, on SSD/HDD) | 32 GB (OS, on SSD/HDD)   |
-| Disk 2   | 200 GB (NVMe)          | 200 GB (NVMe)            |
+| Disk     | 250 GB (NVMe-backed)   | 250 GB (NVMe-backed)     |
 | Network  | Bridge to 172.16.0.0/16 | Bridge to 172.16.0.0/16  |
 
 Note: Replicas need the same disk size as the primary (they hold a full copy),
 but can run with less RAM and CPU. PostgreSQL memory settings are configured
-per node via `.env` — see step 5.
+per node via `.env` — see step 5. Since the Proxmox hosts use M.2 NVMe
+storage, a single disk is sufficient.
 
 Assign static IPs:
 
@@ -28,29 +28,13 @@ Assign static IPs:
 | Node 3 | 172.16.0.203  |
 | VIP    | 172.16.0.200  |
 
-### 2. Mount NVMe storage
-
-Format and mount the NVMe disk:
+### 2. Create data directories
 
 ```bash
-# Identify the NVMe disk (adjust device name as needed)
-lsblk
-
-# Create filesystem
-mkfs.ext4 /dev/nvme0n1
-
-# Create mount point and mount
-mkdir -p /mnt/nvme
-mount /dev/nvme0n1 /mnt/nvme
-
-# Add to fstab for persistence
-echo '/dev/nvme0n1 /mnt/nvme ext4 defaults,noatime 0 2' >> /etc/fstab
-
-# Create data directories
-mkdir -p /mnt/nvme/pgdata /mnt/nvme/etcd-data
+mkdir -p /var/lib/patroni/pgdata /var/lib/patroni/etcd-data
 
 # Set ownership (UID 999 is the postgres user in the official image)
-chown 999:999 /mnt/nvme/pgdata
+chown 999:999 /var/lib/patroni/pgdata
 ```
 
 ### 3. Install Docker

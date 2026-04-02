@@ -14,7 +14,7 @@ services:
       ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
       ETCD_ADVERTISE_CLIENT_URLS: "http://${NODE_IP}:2379"
     volumes:
-      - /mnt/nvme/etcd-data:/etcd-data
+      - /var/lib/patroni/etcd-data:/etcd-data
     network_mode: host
 
   patroni:
@@ -31,7 +31,7 @@ services:
       REWIND_PASSWORD: ${REWIND_PASSWORD}
       ADEMPIERE_PASSWORD: ${ADEMPIERE_PASSWORD}
     volumes:
-      - /mnt/nvme/pgdata:/var/lib/postgresql/data
+      - /var/lib/patroni/pgdata:/var/lib/postgresql/data
       - ./config/patroni.yml.tmpl:/etc/patroni/patroni.yml.tmpl:ro
     network_mode: host
     depends_on:
