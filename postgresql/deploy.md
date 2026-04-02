@@ -28,13 +28,23 @@ Assign static IPs:
 | Node 3 | 172.16.0.203  |
 | VIP    | 172.16.0.200  |
 
-### 2. Create data directories
+### 2. Create patroni user and directories
 
 ```bash
+# Create a dedicated user (no login shell needed)
+useradd -r -m -d /opt/patroni -s /usr/sbin/nologin patroni
+
+# Add to docker group so it can run docker compose
+usermod -aG docker patroni
+
+# Create data directories
 mkdir -p /var/lib/patroni/pgdata /var/lib/patroni/etcd-data
 
-# Set ownership (UID 999 is the postgres user in the official image)
+# pgdata must be owned by UID 999 (postgres user inside the container)
 chown 999:999 /var/lib/patroni/pgdata
+
+# etcd-data owned by the patroni user
+chown patroni:patroni /var/lib/patroni/etcd-data
 ```
 
 ### 3. Install Docker
@@ -51,7 +61,7 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 ### 4. Copy project files
 
-Copy the entire `postgresql/` directory to each node, e.g. to `/opt/patroni/`:
+Copy the entire `postgresql/` directory to each node:
 
 ```bash
 scp -r postgresql/ root@172.16.0.201:/opt/patroni/
@@ -59,13 +69,19 @@ scp -r postgresql/ root@172.16.0.202:/opt/patroni/
 scp -r postgresql/ root@172.16.0.203:/opt/patroni/
 ```
 
+Then on each node, set ownership:
+
+```bash
+chown -R patroni:patroni /opt/patroni
+chmod 600 /opt/patroni/.env    # restrict .env since it contains passwords
+```
+
 ### 5. Create .env per node
 
 On each node, copy `.env.example` to `.env` and configure:
 
 ```bash
-cd /opt/patroni
-cp .env.example .env
+sudo -u patroni cp /opt/patroni/.env.example /opt/patroni/.env
 ```
 
 **Node 1** (primary, 50 GB RAM) — `.env`:
@@ -134,10 +150,16 @@ A good rule of thumb: `shared_buffers` = ~25% of RAM,
 
 ## Deployment
 
+All remaining commands should be run as the patroni user:
+
+```bash
+sudo -u patroni -i
+cd /opt/patroni
+```
+
 ### Step 1: Build images (on each node)
 
 ```bash
-cd /opt/patroni
 docker compose build
 ```
 
