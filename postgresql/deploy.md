@@ -52,7 +52,9 @@ usermod -aG docker patroni
 # Create data directories
 mkdir -p /var/lib/patroni/pgdata /var/lib/patroni/etcd-data
 
-# pgdata must be owned by UID 999 (postgres user inside the container)
+# pgdata is mounted as /var/lib/postgresql in the container.
+# Patroni/initdb creates the "data" subdirectory inside it, so the
+# mount point itself must be owned by UID 999 (postgres in the container).
 chown 999:999 /var/lib/patroni/pgdata
 
 # etcd-data owned by the patroni user
@@ -258,6 +260,54 @@ psql -h 172.16.0.200 -p 5001 -U adempiere -d adempiere -c "SELECT 1;"
 
 ---
 
+## Restoring a backup
+
+Copy the backup files to the primary node first, then pipe them into the
+container. This avoids needing to mount volumes or install a matching
+`postgresql-client` version on the host.
+
+### 1. Copy files to the primary node
+
+```bash
+scp globals.sql backup.dump user@172.16.0.201:/tmp/
+```
+
+### 2. Restore globals (roles, passwords, etc.)
+
+```bash
+docker exec -i patroni psql -U postgres -d postgres < /tmp/globals.sql
+```
+
+### 3. Restore the database
+
+```bash
+docker exec -i patroni pg_restore -U postgres -d adempiere < /tmp/backup.dump
+```
+
+If the database needs to be created fresh before restoring (drop + create):
+
+```bash
+docker exec -i patroni dropdb -U postgres adempiere
+docker exec -i patroni pg_restore -U postgres --create -d postgres < /tmp/backup.dump
+```
+
+### 4. Verify
+
+```bash
+docker exec patroni psql -U adempiere -d adempiere -c "\dt" | head -20
+```
+
+The replicas will pick up all changes automatically via streaming replication
+— no action needed on nodes 2 and 3.
+
+### 5. Clean up
+
+```bash
+rm /tmp/globals.sql /tmp/backup.dump
+```
+
+---
+
 ## Verification checklist
 
 ```bash
@@ -277,6 +327,55 @@ ip addr show ens19 | grep 172.16.0.200
 docker compose stop patroni
 # Then check cluster status from another node — a new leader should be elected
 ```
+
+---
+
+## Failover and switchover
+
+### Failover timeout
+
+The cluster is configured with a `ttl` of 120 seconds. This means the primary
+can be down for up to ~2 minutes before a replica is promoted. This gives enough
+time to restart a node without triggering an automatic failover.
+
+### Automatic failover
+
+If the primary is down for longer than ~2 minutes:
+
+1. etcd detects the leader key has expired
+2. The most up-to-date replica is automatically promoted
+3. HAProxy routes traffic to the new primary within seconds
+4. When the old primary comes back, it rejoins as a **replica** (not primary)
+
+Patroni does **not** automatically switch back to the original primary. This is
+by design — automatic switchbacks risk data inconsistency.
+
+### Manual switchover (move primary back)
+
+To move the primary role to a specific node (e.g. back to pg-node1 after it
+recovers), run from any node:
+
+```bash
+docker exec patroni patronictl -c /tmp/patroni.yml switchover
+```
+
+Patroni will prompt for the target node and perform a graceful switchover
+with zero downtime. You can also specify it directly:
+
+```bash
+docker exec patroni patronictl -c /tmp/patroni.yml switchover --master pg-node2 --candidate pg-node1 --force
+```
+
+### Restarting a node safely
+
+With the 120s ttl, you can restart a node without triggering failover:
+
+```bash
+docker compose restart patroni    # restarts PostgreSQL via Patroni
+```
+
+As long as it comes back within ~2 minutes, it will resume its role
+(primary or replica) without any promotion happening.
 
 ---
 

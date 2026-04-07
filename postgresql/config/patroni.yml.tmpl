@@ -11,8 +11,8 @@ etcd3:
 
 bootstrap:
   dcs:
-    ttl: 30
-    loop_wait: 10
+    ttl: 120
+    loop_wait: 30
     retry_timeout: 10
     maximum_lag_on_failover: 1048576
     postgresql:
@@ -44,11 +44,6 @@ bootstrap:
     - host all all 192.168.1.0/24 scram-sha-256
     - host all all 172.16.0.0/16 scram-sha-256
     - host all all 0.0.0.0/0 reject
-  users:
-    replicator:
-      password: ${REPLICATION_PASSWORD}
-      options:
-        - replication
   post_bootstrap: /usr/local/bin/post-bootstrap.sh
 
 postgresql:
