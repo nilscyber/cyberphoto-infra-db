@@ -40,9 +40,9 @@ bootstrap:
     - encoding: UTF8
     - data-checksums
   pg_hba:
-    - host replication replicator 172.16.0.0/16 scram-sha-256
-    - host all all 192.168.1.0/24 scram-sha-256
-    - host all all 172.16.0.0/16 scram-sha-256
+    - host replication replicator 172.16.0.0/16 md5
+    - host all all 192.168.1.0/24 md5
+    - host all all 172.16.0.0/16 md5
     - host all all 0.0.0.0/0 reject
   post_bootstrap: /usr/local/bin/post-bootstrap.sh
 
