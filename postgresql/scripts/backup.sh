@@ -73,6 +73,12 @@ DEST="$BACKUP_ROOT/$STAMP"
 mkdir -p "$DEST"
 chmod 700 "$BACKUP_ROOT" "$DEST"
 
+# Retention runs first so a later failure can't cause old backups to pile up.
+log "pruning backups older than $RETENTION_DAYS day(s)"
+find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d \
+    -regextype posix-extended -regex '.*/[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$' \
+    -mtime "+$RETENTION_DAYS" -print -exec rm -rf {} +
+
 # Helper: run a psql/pg_dump command inside the container, with password
 # supplied via env var so it never appears in `ps`.
 pg() {
@@ -115,7 +121,6 @@ for db in "${DBS[@]}"; do
         --no-owner \
         --no-sync \
         --verbose \
-        --file=/dev/stdout \
         > "$out" 2> "$DEST/${db}.log"
 done
 
@@ -131,10 +136,5 @@ done
 )
 
 log "backup ok, size=$(du -sh "$DEST" | cut -f1)"
-
-# 5. Retention: delete dated directories older than RETENTION_DAYS.
-find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d \
-    -regextype posix-extended -regex '.*/[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}$' \
-    -mtime "+$RETENTION_DAYS" -print -exec rm -rf {} +
 
 log "backup done"

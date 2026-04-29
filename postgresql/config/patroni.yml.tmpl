@@ -36,6 +36,10 @@ bootstrap:
         min_wal_size: 1GB
         random_page_cost: 1.1
         effective_io_concurrency: 200
+        tcp_keepalives_idle: 60
+        tcp_keepalives_interval: 10
+        tcp_keepalives_count: 6
+        idle_in_transaction_session_timeout: 600000
   initdb:
     - encoding: UTF8
     - data-checksums
